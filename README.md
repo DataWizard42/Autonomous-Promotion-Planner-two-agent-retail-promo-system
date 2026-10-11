@@ -9,7 +9,7 @@ A two-agent system that plans retail promotions end-to-end and lets a human inje
 ## Quick start
 
 ```
-open index.html   # or drag into any browser — no server, no build step
+https://datawizard42.github.io/Autonomous-Promotion-Planner-two-agent-retail-promo-system/
 ```
 
 That's it. The planning agent runs entirely in the browser. Agent 2 (business-constraints) works in offline/demo mode without an API key.
