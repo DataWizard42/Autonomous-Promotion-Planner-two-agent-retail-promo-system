@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Autonomous Promotion Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <header class="site-header">
+    <h1>Autonomous Promotion Planner</h1>
+    <span class="badge">ET AI Hackathon · Agentic Edition</span>
+    <span class="subtitle">Planning Agent + Business-Constraints Agent (LLM) · Retail · Problem 3</span>
+  </header>
+
+  <section>
+    <div class="section-label">Step 1 — Set global constraints</div>
+    <div class="card">
+      <div class="constraint-grid">
+        <div class="field-group">
+          <label for="c-margin">Margin floor (%)</label>
+          <input type="number" id="c-margin" value="12" min="0" max="60" step="1" />
+        </div>
+        <div class="field-group">
+          <label for="c-budget">Discount budget (₹K)</label>
+          <input type="number" id="c-budget" value="5000" min="100" step="100" />
+        </div>
+        <div class="field-group">
+          <label for="c-season">Season / holiday multiplier</label>
+          <select id="c-season">
+            <option value="1.0">Normal (×1.0)</option>
+            <option value="1.25">Festive (×1.25)</option>
+            <option value="1.5" selected>Peak festive (×1.5)</option>
+            <option value="0.85">Off-season (×0.85)</option>
+            <option value="0.7">Slow season (×0.70)</option>
+          </select>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-primary" id="plan-btn">
+          <span class="spinner" id="plan-spinner"></span>
+          ▶ Plan promotions
+        </button>
+        <span style="font-size:12px;color:var(--muted)">
+          Agent 1 runs entirely in-browser · no network needed
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <div id="results-area" style="display:none">
+
+    <section>
+      <div class="section-label">Step 2 — Summary KPIs</div>
+      <div class="kpi-strip" id="kpi-strip" style="display:none">
+        <div class="kpi-card">
+          <div class="kpi-label">Products in plan</div>
+          <div class="kpi-value" id="kpi-products">—</div>
+          <div class="kpi-sub">SKUs with active promo</div>
+        </div>
+        <div class="kpi-card highlight">
+          <div class="kpi-label">Est. incremental profit</div>
+          <div class="kpi-value" id="kpi-profit">—</div>
+          <div class="kpi-sub">Net of cannibalization</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Discount spend</div>
+          <div class="kpi-value" id="kpi-spend">—</div>
+          <div class="kpi-sub">Within budget</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Return / ₹ spent</div>
+          <div class="kpi-value" id="kpi-roi">—</div>
+          <div class="kpi-sub">Profit per rupee discounted</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Extra units sold</div>
+          <div class="kpi-value" id="kpi-units">—</div>
+          <div class="kpi-sub">Demand uplift across plan</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">Step 3 — Recommended plan</div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Discount</th>
+                <th>Duration</th>
+                <th>Promo price</th>
+                <th>Promo margin</th>
+                <th>Extra units</th>
+                <th>Net profit</th>
+                <th>Spend</th>
+                <th>Mechanism</th>
+                <th>Audience</th>
+                <th>Why</th>
+                <th>Agent 2</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody id="plan-tbody">
+              <tr>
+                <td colspan="13">
+                  <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <p>Click "Plan promotions" to run Agent 1</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
+        <button class="trace-toggle" id="planner-trace-toggle">
+          <span class="toggle-label">Show agent trace ▼</span>
+        </button>
+        <div class="trace-panel" id="planner-trace"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">Step 4 — Regional discount deltas</div>
+      <div class="regional-grid" id="regional-grid"></div>
+    </section>
+
+    <section id="sim-section" style="display:none">
+      <div class="section-label">Pre-launch Monte Carlo simulation (300 iterations)</div>
+      <div class="card">
+        <div class="sim-bar-wrap">
+          <div class="sim-item">
+            <label>Incremental profit distribution</label>
+            <div class="sim-track">
+              <div class="sim-fill p90" id="sim-p90-fill" style="width:0%"></div>
+              <div class="sim-fill p50" id="sim-p50-fill" style="width:0%"></div>
+              <div class="sim-fill p10" id="sim-p10-fill" style="width:0%"></div>
+            </div>
+            <div class="sim-labels">
+              <span id="sim-p10-label">P10: —</span>
+              <span id="sim-p50-label">P50: —</span>
+              <span id="sim-p90-label">P90: —</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">
+              Demand ±15%, elasticity ±10% randomized
+            </div>
+          </div>
+
+          <div class="sim-item">
+            <label>Guarantee pass rates</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:6px">
+              <div>
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Margin floor held</div>
+                <div class="sim-pass-rate" id="sim-margin-rate">—</div>
+                <div style="font-size:11px;color:var(--muted)">of simulations</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Budget respected</div>
+                <div class="sim-pass-rate" id="sim-budget-rate">—</div>
+                <div style="font-size:11px;color:var(--muted)">of simulations</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="agent2-section" style="display:none">
+      <div class="section-label">Step 5 — Business-constraints agent (Agent 2 · LLM)</div>
+      <div class="card">
+        <div class="constraint-agent">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:4px">
+            Enter any free-text business context — legal recalls, brand directives, competitor rumors — that Agent 1 can't know about ahead of time.
+            Agent 2 will review the plan and decide KEEP / ADJUST / VETO per product.
+          </p>
+          <textarea
+            id="stakeholder-note"
+            placeholder='e.g. "Legal has flagged a potential recall on cameras. Brand team wants premium positioning — no deep cuts above 25% on headphones. Competitor running a sale on laptops this weekend."'></textarea>
+
+          <div class="action-row">
+            <button class="btn btn-secondary" id="review-btn">
+              <span class="spinner dark" id="review-spinner"></span>
+              🤖 Run Agent 2 review
+            </button>
+            <span style="font-size:12px;color:var(--muted)">
+              Calls LLM · uses offline mock if no API available
+            </span>
+          </div>
+
+          <div id="agent-summary-wrap" style="display:none">
+            <div class="agent-summary" id="agent-summary"></div>
+          </div>
+
+          <div style="margin-top:6px">
+            <button class="trace-toggle" id="agent-trace-toggle" style="display:none">
+              <span class="toggle-label">Show agent trace ▼</span>
+            </button>
+            <div class="trace-panel" id="agent-trace"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">Step 6 — Live re-plan: competitor cuts a price</div>
+      <div class="card">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+          Simulates a market tick where a competitor drops their price. Agent 1 re-optimizes the full plan instantly — no page reload.
+        </p>
+        <div class="competitor-panel">
+          <div class="field-group">
+            <label for="comp-product">Product</label>
+            <select id="comp-product"></select>
+          </div>
+          <div class="field-group">
+            <label for="comp-price">New competitor price (₹)</label>
+            <input type="number" id="comp-price" placeholder="e.g. 45000" />
+          </div>
+          <button class="btn btn-warning" id="replan-btn">
+            <span class="spinner" id="replan-spinner"></span>
+            ⚡ Re-plan now
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div id="empty-state" class="empty-state" style="padding:80px 20px">
+    <div class="empty-icon">🛒</div>
+    <p>Set your constraints above and click <strong>Plan promotions</strong> to start.</p>
+    <p style="margin-top:6px">Agent 1 (deterministic) runs client-side. Agent 2 (LLM) works offline via mock.</p>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
